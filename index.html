@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ID Card Maker Pro — Bulk + Configurable</title>
+  <meta name="description" content="Free, offline-capable ID card maker for Indian government and corporate offices. Bulk import via Excel, custom themes, watermarks, and signature support.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪪</text></svg>">
+
+  <!-- External libraries (CDN, cached after first load) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app">
+  <div class="panel">
+    <h1>🪪 ID Card Maker Pro</h1>
+    <div class="subtitle">Bulk · Font controls · Auto-saved</div>
+    <div class="status-bar" id="statusBar">
+      <span class="status-dot" id="netDot"></span>
+      <span id="netStatus">Checking…</span>
+      <span class="sep">·</span>
+      <span id="storageStatus">💾 0 KB saved</span>
+    </div>
+
+    <h2 onclick="toggleSection(this)">🗂️ Profiles <span class="badge">NEW</span> <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <div class="hint">Save full setups (office config + logo + sign + people) and switch between them.</div>
+      <div class="row">
+        <input type="text" id="profileName" placeholder="Profile name e.g. Palari Office"/>
+        <button class="btn-success" onclick="saveProfile()">💾 Save</button>
+      </div>
+      <select id="profileSelect" onchange="loadProfile(this.value)" style="margin-top:6px">
+        <option value="">— Load a saved profile —</option>
+      </select>
+      <div class="btn-row">
+        <button class="btn-secondary" onclick="deleteProfile()">🗑️ Delete</button>
+        <button class="btn-secondary" onclick="exportAllProfiles()">📤 Export All</button>
+        <button class="btn-secondary" onclick="document.getElementById('importProfilesFile').click()">📥 Import</button>
+        <input type="file" id="importProfilesFile" accept=".json" onchange="importProfiles(event)" style="display:none"/>
+      </div>
+    </div>
+
+    <h2 onclick="toggleSection(this)">📦 Bulk Import <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <div class="hint">
+        <b>Excel columns:</b> <code>NAME, FATHER'S NAME, DOB, EMPLOYEE CODE, BLOOD GROUP, CONTACT NUMBER, OFFICE ADRESS, POST</code><br>
+        <b>Photos:</b> file name <code>EmployeeCode.jpg</code>
+      </div>
+      <label>Excel file (.xlsx)</label>
+      <div class="file-row">
+        <input type="file" id="bulkExcel" accept=".xlsx,.xls"/>
+        <button class="btn-clear" onclick="clearFileInput('bulkExcel')" title="Clear">✕</button>
+      </div>
+      <label>Photos ZIP file</label>
+      <div class="file-row">
+        <input type="file" id="bulkZip" accept=".zip"/>
+        <button class="btn-clear" onclick="clearFileInput('bulkZip')" title="Clear">✕</button>
+      </div>
+      <button class="btn-success" onclick="doBulkImport()" style="width:100%">📥 Import Bulk Data</button>
+      <div class="status" id="bulkStatus"></div>
+    </div>
+
+    <h2 onclick="toggleSection(this)">📐 Orientation <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <div class="toggle-row">
+        <button id="b-portrait" class="active" onclick="setOrient('portrait')">📄 Portrait</button>
+        <button id="b-landscape" onclick="setOrient('landscape')">📰 Landscape</button>
+      </div>
+    </div>
+
+    <h2 onclick="toggleSection(this)">🏛️ Office Header <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <label>Main heading (Hindi)</label>
+      <input type="text" id="oh1" oninput="updateGlobal('oh1',this.value)"/>
+      <label>Sub heading (Hindi)</label>
+      <input type="text" id="oh2" oninput="updateGlobal('oh2',this.value)"/>
+      <label>Department (English, short)</label>
+      <input type="text" id="dept" oninput="updateGlobal('dept',this.value)"/>
+    </div>
+
+    <h2 onclick="toggleSection(this)">🖼️ Logo & Signature <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <label>State / Office Logo</label>
+      <div class="file-row">
+        <input type="file" accept="image/*" id="logoFile" onchange="loadImg(event,'logo')"/>
+        <button class="btn-clear" onclick="clearImage('logo')" title="Remove logo">✕</button>
+      </div>
+      <label>Signature image</label>
+      <div class="file-row">
+        <input type="file" accept="image/*" id="signFile" onchange="loadImg(event,'sign')"/>
+        <button class="btn-clear" onclick="clearImage('sign')" title="Remove signature">✕</button>
+      </div>
+      <div class="slider-row">
+        <label>BG Clean</label>
+        <input type="range" id="signThreshold" min="120" max="240" value="200" oninput="onThresholdChange(this.value)"/>
+        <span class="slider-val" id="signThresholdVal">200</span>
+      </div>
+      <label>Signatory label</label>
+      <input type="text" id="authLabel" oninput="updateGlobal('authLabel',this.value)"/>
+      <label>Signature post (Hindi short)</label>
+      <input type="text" id="signPost" oninput="updateGlobal('signPost',this.value)"/>
+    </div>
+
+    <h2 onclick="toggleSection(this)">🎨 Colors & Theme <span class="badge">NEW</span> <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <div class="hint">Choose a preset theme or pick custom colors for each part of the card.</div>
+      <label>Preset Themes</label>
+      <div class="theme-row">
+        <button class="theme-btn" onclick="applyTheme('navy')" style="background:linear-gradient(135deg,#1a3a6e,#0d2248);color:#ffe082">Navy (Default)</button>
+        <button class="theme-btn" onclick="applyTheme('maroon')" style="background:linear-gradient(135deg,#7a1f1f,#4a0e0e);color:#ffd54f">Maroon</button>
+        <button class="theme-btn" onclick="applyTheme('forest')" style="background:linear-gradient(135deg,#1b5e20,#0d3b13);color:#fff8c4">Forest Green</button>
+        <button class="theme-btn" onclick="applyTheme('royal')" style="background:linear-gradient(135deg,#4a148c,#2c0a52);color:#ffe082">Royal Purple</button>
+        <button class="theme-btn" onclick="applyTheme('teal')" style="background:linear-gradient(135deg,#00695c,#003d34);color:#ffd180">Teal</button>
+        <button class="theme-btn" onclick="applyTheme('saffron')" style="background:linear-gradient(135deg,#bf5700,#7a3700);color:#fff8c4">Saffron</button>
+        <button class="theme-btn" onclick="applyTheme('charcoal')" style="background:linear-gradient(135deg,#37474f,#1c252a);color:#ffd54f">Charcoal</button>
+        <button class="theme-btn" onclick="applyTheme('crimson')" style="background:linear-gradient(135deg,#b71c1c,#7a0e0e);color:#ffe082">Crimson</button>
+      </div>
+
+      <label style="margin-top:10px">Custom Colors</label>
+      <div class="color-grid">
+        <div class="color-item"><span>Header BG</span><input type="color" id="cVar_c-primary" oninput="updateColor('--c-primary',this.value)"/></div>
+        <div class="color-item"><span>Header BG (dark)</span><input type="color" id="cVar_c-primary-dark" oninput="updateColor('--c-primary-dark',this.value)"/></div>
+        <div class="color-item"><span>Header Text</span><input type="color" id="cVar_c-header-text" oninput="updateColor('--c-header-text',this.value)"/></div>
+        <div class="color-item"><span>Yellow Strip</span><input type="color" id="cVar_c-strip" oninput="updateColor('--c-strip',this.value)"/></div>
+        <div class="color-item"><span>Strip Text</span><input type="color" id="cVar_c-strip-text" oninput="updateColor('--c-strip-text',this.value)"/></div>
+        <div class="color-item"><span>Photo Border</span><input type="color" id="cVar_c-photo-border" oninput="updateColor('--c-photo-border',this.value)"/></div>
+        <div class="color-item"><span>Blood Badge</span><input type="color" id="cVar_c-accent" oninput="updateColor('--c-accent',this.value)"/></div>
+        <div class="color-item"><span>Stripe 1</span><input type="color" id="cVar_c-stripe-1" oninput="updateColor('--c-stripe-1',this.value)"/></div>
+        <div class="color-item"><span>Stripe 2</span><input type="color" id="cVar_c-stripe-2" oninput="updateColor('--c-stripe-2',this.value)"/></div>
+        <div class="color-item"><span>Stripe 3</span><input type="color" id="cVar_c-stripe-3" oninput="updateColor('--c-stripe-3',this.value)"/></div>
+      </div>
+
+      <button class="btn-secondary" onclick="resetColors()" style="width:100%;margin-top:8px">↺ Reset to Default</button>
+    </div>
+
+    <h2 onclick="toggleSection(this)">💧 Watermark <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <div class="hint">Logo ka faded watermark front aur back dono pe automatically aata hai. Size aur darkness adjust karo.</div>
+      <div class="slider-row">
+        <label>Size (Front)</label>
+        <input type="range" id="wmSize" min="80" max="200" value="160" oninput="updateSize('wmSize',this.value,'wmSizeVal','px')"/>
+        <span class="slider-val" id="wmSizeVal">160px</span>
+      </div>
+      <div class="slider-row">
+        <label>Size (Back)</label>
+        <input type="range" id="wmBackSize" min="80" max="200" value="170" oninput="updateSize('wmBackSize',this.value,'wmBackSizeVal','px')"/>
+        <span class="slider-val" id="wmBackSizeVal">170px</span>
+      </div>
+      <div class="slider-row">
+        <label>Opacity</label>
+        <input type="range" id="wmOpacity" min="2" max="25" step="1" value="8" oninput="updateSize('wmOpacity',this.value,'wmOpacityVal','%')"/>
+        <span class="slider-val" id="wmOpacityVal">8%</span>
+      </div>
+    </div>
+
+    <h2 onclick="toggleSection(this)">✍️ Sign Position & Size <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <label>Position</label>
+      <div class="pos-grid">
+        <div class="pos-cell" data-pos="left">◀</div>
+        <div class="pos-cell active" data-pos="center">●</div>
+        <div class="pos-cell" data-pos="right">▶</div>
+      </div>
+      <div class="slider-row">
+        <label>Sign Width</label>
+        <input type="range" id="signSize" min="50" max="140" value="96" oninput="updateSize('signWidth',this.value,'signSizeVal','px')"/>
+        <span class="slider-val" id="signSizeVal">96px</span>
+      </div>
+    </div>
+
+    <h2 onclick="toggleSection(this)">🔠 Font Sizes <span class="badge">NEW</span> <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <div class="hint">All font sizes adjustable. Reset button at bottom.</div>
+
+      <div class="font-block">
+        <div class="font-block-title">Front — Header</div>
+        <div class="slider-row"><label>Main heading</label><input type="range" min="9" max="18" step="0.5" id="f_oh1" oninput="updateSize('f_oh1',this.value,'v_oh1','px')"/><span class="slider-val" id="v_oh1">14px</span></div>
+        <div class="slider-row"><label>Sub heading</label><input type="range" min="7" max="13" step="0.5" id="f_oh2" oninput="updateSize('f_oh2',this.value,'v_oh2','px')"/><span class="slider-val" id="v_oh2">9px</span></div>
+      </div>
+
+      <div class="font-block">
+        <div class="font-block-title">Front — Name & Post</div>
+        <div class="slider-row"><label>Name</label><input type="range" min="9" max="18" step="0.5" id="f_nm" oninput="updateSize('f_nm',this.value,'v_nm','px')"/><span class="slider-val" id="v_nm">14px</span></div>
+        <div class="slider-row"><label>Post (Patwari)</label><input type="range" min="7" max="14" step="0.5" id="f_po" oninput="updateSize('f_po',this.value,'v_po','px')"/><span class="slider-val" id="v_po">11px</span></div>
+        <div class="slider-row"><label>Department</label><input type="range" min="5" max="10" step="0.5" id="f_dt" oninput="updateSize('f_dt',this.value,'v_dt','px')"/><span class="slider-val" id="v_dt">7.5px</span></div>
+      </div>
+
+      <div class="font-block">
+        <div class="font-block-title">Front — Sign Section</div>
+        <div class="slider-row"><label>Auth label</label><input type="range" min="5" max="9" step="0.5" id="f_al" oninput="updateSize('f_al',this.value,'v_al','px')"/><span class="slider-val" id="v_al">6.5px</span></div>
+        <div class="slider-row"><label>Sign post text</label><input type="range" min="7" max="12" step="0.5" id="f_sp" oninput="updateSize('f_sp',this.value,'v_sp','px')"/><span class="slider-val" id="v_sp">10px</span></div>
+      </div>
+
+      <div class="font-block">
+        <div class="font-block-title">Back — Labels & Values</div>
+        <div class="slider-row"><label>Field label</label><input type="range" min="6" max="10" step="0.5" id="f_bl" oninput="updateSize('f_bl',this.value,'v_bl','px')"/><span class="slider-val" id="v_bl">7.5px</span></div>
+        <div class="slider-row"><label>Value (big)</label><input type="range" min="11" max="20" step="0.5" id="f_bv" oninput="updateSize('f_bv',this.value,'v_bv','px')"/><span class="slider-val" id="v_bv">16px</span></div>
+        <div class="slider-row"><label>Value (medium)</label><input type="range" min="9" max="16" step="0.5" id="f_bmd" oninput="updateSize('f_bmd',this.value,'v_bmd','px')"/><span class="slider-val" id="v_bmd">13px</span></div>
+        <div class="slider-row"><label>Value (small)</label><input type="range" min="8" max="13" step="0.5" id="f_bsm" oninput="updateSize('f_bsm',this.value,'v_bsm','px')"/><span class="slider-val" id="v_bsm">11px</span></div>
+        <div class="slider-row"><label>Blood group</label><input type="range" min="12" max="22" step="0.5" id="f_bblood" oninput="updateSize('f_bblood',this.value,'v_bblood','px')"/><span class="slider-val" id="v_bblood">18px</span></div>
+      </div>
+
+      <button class="btn-secondary" onclick="resetFonts()" style="width:100%">↺ Reset All Fonts</button>
+    </div>
+
+    <h2 onclick="toggleSection(this)">👥 People (<span id="peopleCount">1</span>) <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <div class="person-tabs" id="personTabs"></div>
+      <div class="btn-row">
+        <button class="btn-secondary" onclick="addPerson()">+ Add</button>
+        <button class="btn-secondary" onclick="removePerson()">− Remove</button>
+        <button class="btn-secondary" onclick="clearAll()">🗑️ Clear</button>
+      </div>
+    </div>
+
+    <h2 onclick="toggleSection(this)">👤 Person Details <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <label>Photo</label>
+      <div class="file-row">
+        <input type="file" accept="image/*" id="photoFile" onchange="loadImg(event,'photo')"/>
+        <button class="btn-clear" onclick="clearImage('photo')" title="Remove photo">✕</button>
+      </div>
+      <label>Name</label>
+      <input type="text" id="name" oninput="updateField('name',this.value)"/>
+      <label>Post (English)</label>
+      <input type="text" id="post" oninput="updateField('post',this.value)"/>
+      <label>Father's Name</label>
+      <input type="text" id="father" oninput="updateField('father',this.value)"/>
+      <label>Employee ID</label>
+      <input type="text" id="empId" oninput="updateField('empId',this.value)"/>
+      <div class="row">
+        <div><label>DOB</label><input type="text" id="dob" placeholder="DD/MM/YYYY" oninput="updateField('dob',this.value)"/></div>
+        <div><label>Blood</label><input type="text" id="blood" oninput="updateField('blood',this.value)"/></div>
+      </div>
+      <label>Contact</label>
+      <input type="tel" id="contact" oninput="updateField('contact',this.value)"/>
+      <label>Office Address</label>
+      <textarea id="address" oninput="updateField('address',this.value)"></textarea>
+    </div>
+
+    <h2 onclick="toggleSection(this)">❓ Help & Tips <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <div class="hint">
+        <b>🛡️ Data Safety</b><br>
+        • Browser cache clear hone se data ja sakta hai<br>
+        • <b>Daily JSON backup le</b> — "💾 Save" button se<br>
+        • <b>Profiles</b> use karo — multiple offices ke liye<br>
+        • Tool HTML file ko Drive/Email pe save kar lo
+      </div>
+      <div class="hint">
+        <b>📦 Bulk Import workflow:</b><br>
+        1. Excel banao with columns: NAME, FATHER'S NAME, DOB, EMPLOYEE CODE, BLOOD GROUP, CONTACT NUMBER, OFFICE ADRESS<br>
+        2. Photos rename to <code>EmpCode.jpg</code><br>
+        3. Photos folder ZIP banao<br>
+        4. Upload + click Import button
+      </div>
+      <div class="hint">
+        <b>✈️ Offline use:</b><br>
+        • Manual entry, edit, print — sab offline chalega<br>
+        • Bulk Import ke liye internet chahiye (pehli baar)<br>
+        • Saved JSON files anytime load ho sakti hain
+      </div>
+      <div class="hint">
+        <b>🖨️ Print tips:</b><br>
+        • Browser print dialog me "Actual Size" ya "100%" select karo<br>
+        • "Fit to page" OFF rakho<br>
+        • Card stock paper use karo (~250 GSM)
+      </div>
+    </div>
+
+    <h2>💾 Save / Print</h2>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="window.print()">🖨️ Print All</button>
+      <button class="btn-secondary" onclick="exportData()">💾 Save</button>
+      <button class="btn-secondary" onclick="document.getElementById('importFile').click()">📂 Load</button>
+      <input type="file" id="importFile" accept=".json" onchange="importData(event)" style="display:none"/>
+    </div>
+  </div>
+
+  <div class="preview" id="preview"></div>
+</div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
