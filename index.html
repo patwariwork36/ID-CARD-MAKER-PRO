@@ -16,7 +16,12 @@
 <body>
 
 <div class="app">
-  <div class="panel">
+  <!-- Mobile menu toggle (only visible on mobile) -->
+  <button class="mobile-toggle" onclick="togglePanel()" aria-label="Toggle settings">
+    <span id="mobileToggleIcon">☰</span> Settings
+  </button>
+
+  <div class="panel" id="panel">
     <h1>🪪 ID Card Maker Pro</h1>
     <div class="subtitle">Bulk · Font controls · Auto-saved</div>
     <div class="status-bar" id="statusBar">
@@ -272,9 +277,34 @@
       </div>
     </div>
 
+    <h2 onclick="toggleSection(this)">🖨️ Print Layout <span class="badge">NEW</span> <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <div class="hint">
+        Choose how cards should print:
+      </div>
+      <label>Print Mode</label>
+      <div class="print-mode-grid">
+        <button class="pmode-btn active" data-mode="pair" onclick="setPrintMode('pair')">
+          <span class="pm-icon">📄📄</span>
+          <span class="pm-title">Front + Back<br>Side-by-Side</span>
+          <span class="pm-desc">1 page per person<br>Cut + paste back</span>
+        </button>
+        <button class="pmode-btn" data-mode="duplex" onclick="setPrintMode('duplex')">
+          <span class="pm-icon">🔄</span>
+          <span class="pm-title">Duplex<br>(Front/Back Sep.)</span>
+          <span class="pm-desc">All fronts → all backs<br>For 2-sided printer</span>
+        </button>
+        <button class="pmode-btn" data-mode="grid" onclick="setPrintMode('grid')">
+          <span class="pm-icon">⬜⬜<br>⬜⬜</span>
+          <span class="pm-title">A4 Grid<br>(8 per page)</span>
+          <span class="pm-desc">Cut after print<br>Saves paper</span>
+        </button>
+      </div>
+    </div>
+
     <h2>💾 Save / Print</h2>
     <div class="btn-row">
-      <button class="btn-primary" onclick="window.print()">🖨️ Print All</button>
+      <button class="btn-primary" onclick="printCards()">🖨️ Print All</button>
       <button class="btn-secondary" onclick="exportData()">💾 Save</button>
       <button class="btn-secondary" onclick="document.getElementById('importFile').click()">📂 Load</button>
       <input type="file" id="importFile" accept=".json" onchange="importData(event)" style="display:none"/>

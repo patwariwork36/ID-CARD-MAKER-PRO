@@ -25,6 +25,21 @@ body{font-family:'Inter',sans-serif;background:#eef1f6;color:#222;}
 .panel{background:#fff;padding:18px;overflow-y:auto;border-right:1px solid #ddd;height:100vh;}
 .preview{padding:24px;background:#c8d4e0;display:flex;flex-direction:column;align-items:center;gap:24px;height:100vh;overflow-y:auto;}
 
+/* Mobile menu toggle button — hidden on desktop, visible on mobile */
+.mobile-toggle{
+  display:none;
+  position:fixed;
+  top:12px;right:12px;
+  z-index:1000;
+  background:#1a3a6e;color:#fff;
+  padding:10px 16px;
+  border:none;border-radius:6px;
+  font-size:14px;font-weight:700;
+  cursor:pointer;
+  box-shadow:0 4px 12px rgba(0,0,0,0.25);
+}
+.mobile-toggle:hover{background:#0d2248;}
+
 h1{font-size:17px;font-weight:900;color:#1a3a6e;margin-bottom:4px;}
 .subtitle{font-size:11px;color:#888;margin-bottom:14px;}
 .status-bar{
@@ -121,6 +136,24 @@ input[type=range]{flex:1;}
   background:transparent;
 }
 
+/* Print mode selector */
+.print-mode-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:8px;}
+.pmode-btn{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:9px 4px;background:#f7f9fc;color:#555;border:2px solid #e4e8ef;
+  border-radius:6px;cursor:pointer;font-size:9px;font-weight:700;
+  text-align:center;line-height:1.3;gap:4px;min-height:88px;
+  transition:all 0.15s;
+}
+.pmode-btn:hover{border-color:#1a3a6e;background:#eef2fa;}
+.pmode-btn.active{
+  background:#1a3a6e;color:#fff;border-color:#1a3a6e;
+  box-shadow:0 2px 6px rgba(26,58,110,0.3);
+}
+.pmode-btn .pm-icon{font-size:14px;line-height:1;}
+.pmode-btn .pm-title{font-size:10px;font-weight:800;}
+.pmode-btn .pm-desc{font-size:8px;font-weight:500;opacity:0.85;}
+
 .person-tabs{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:10px;max-height:120px;overflow-y:auto;border:1px solid #eee;padding:4px;border-radius:4px;}
 .person-tabs button{font-size:10px;padding:4px 8px;background:#e8edf5;color:#555;border-radius:3px;cursor:pointer;}
 .person-tabs button.active{background:#1a3a6e;color:#fff;}
@@ -215,11 +248,172 @@ input[type=range]{flex:1;}
 .bcard.landscape .bsm{font-weight:700;color:#222;line-height:1.4;}
 .bcard.landscape .bblood{display:inline-block;background:var(--c-accent);color:#fff;font-weight:900;padding:1px 12px;border-radius:4px;margin-top:1px;letter-spacing:0.5px;}
 
+/* ════════════════════════════════════════
+   MOBILE RESPONSIVE — Below 900px
+   ════════════════════════════════════════ */
+@media (max-width: 900px){
+  /* Single column layout */
+  .app{
+    display:block;
+    grid-template-columns:1fr;
+  }
+
+  /* Show mobile toggle button */
+  .mobile-toggle{
+    display:flex;align-items:center;gap:6px;
+  }
+
+  /* Panel becomes a slide-in overlay drawer */
+  .panel{
+    position:fixed;
+    top:0;left:-100%;
+    width:88%;max-width:420px;
+    height:100vh;height:100dvh;
+    z-index:999;
+    box-shadow:6px 0 24px rgba(0,0,0,0.25);
+    transition:left 0.25s ease-out;
+    padding-top:60px; /* room for close hint */
+    overflow-y:auto;overflow-x:hidden;
+    -webkit-overflow-scrolling:touch;
+  }
+  body.panel-open .panel{left:0;}
+
+  /* Backdrop when panel open */
+  body.panel-open::before{
+    content:'';position:fixed;inset:0;
+    background:rgba(0,0,0,0.45);
+    z-index:998;
+  }
+
+  /* Preview takes full width */
+  .preview{
+    height:auto;min-height:100vh;min-height:100dvh;
+    padding:64px 12px 24px;
+    gap:20px;
+  }
+
+  /* Card label slightly smaller */
+  .card-label{font-size:10px;}
+
+  /* Larger tap targets */
+  button{min-height:38px;padding:10px 14px;font-size:12.5px;}
+  input[type=text],input[type=tel],textarea,select{
+    padding:9px 10px;font-size:14px;  /* 14px+ avoids iOS zoom on focus */
+    min-height:40px;
+  }
+  input[type=file]{font-size:13px;padding:8px 0;min-height:40px;}
+  label{font-size:11.5px;margin-bottom:4px;}
+
+  /* Section toggles bigger and clearer */
+  h2{padding:14px 0 10px;font-size:11.5px;}
+
+  /* Bigger color pickers for fingers */
+  .color-item input[type=color]{width:42px;height:32px;}
+
+  /* Sliders thicker on mobile */
+  input[type=range]{height:24px;}
+
+  /* Theme grid 2-column on small screens */
+  .theme-row{grid-template-columns:1fr 1fr;gap:6px;}
+  .theme-btn{padding:10px 6px;font-size:11px;min-height:44px;}
+
+  /* Print mode buttons stack 1-column */
+  .print-mode-grid{grid-template-columns:1fr;gap:6px;}
+  .pmode-btn{flex-direction:row;justify-content:flex-start;text-align:left;
+    padding:10px 12px;min-height:60px;gap:12px;
+  }
+  .pmode-btn .pm-icon{font-size:18px;}
+  .pmode-btn .pm-title{font-size:12px;}
+  .pmode-btn .pm-desc{font-size:10px;}
+
+  /* Color grid 1-column */
+  .color-grid{grid-template-columns:1fr;}
+
+  /* Person tabs: scrollable horizontally is fine */
+  .person-tabs{max-height:90px;}
+
+  /* Pos grid bigger */
+  .pos-cell{font-size:18px;}
+}
+
+/* Even smaller phones */
+@media (max-width: 380px){
+  .panel{width:94%;padding:12px;padding-top:60px;}
+  .preview{padding:60px 8px 20px;}
+  .card.portrait,.bcard.portrait{transform:scale(0.95);transform-origin:top center;}
+}
+
+
 @media print{
-  .panel{display:none;}
-  .preview{padding:0;background:white;height:auto;overflow:visible;}
-  .card-label{display:none;}
-  .card,.bcard{box-shadow:none;border:0.3mm solid #ccc;page-break-inside:avoid;}
-  .app{display:block;}
-  .card-pair{page-break-inside:avoid;margin-bottom:8mm;}
+  /* Force colors */
+  *{
+    -webkit-print-color-adjust:exact !important;
+    print-color-adjust:exact !important;
+    color-adjust:exact !important;
+  }
+
+  /* Hide UI */
+  .panel,.card-label{display:none !important;}
+  .app{display:block !important;}
+  body{background:white !important;margin:0 !important;padding:0 !important;}
+  .preview{padding:0 !important;background:white !important;height:auto !important;overflow:visible !important;gap:0 !important;display:block !important;}
+  .card-pair{margin:0 !important;padding:0 !important;page-break-inside:avoid !important;display:block !important;}
+
+  .card.portrait, .bcard.portrait{
+    width:204px !important;height:324px !important;
+    margin:0 !important;
+    box-shadow:none !important;border:none !important;
+    border-radius:0 !important;overflow:hidden !important;
+    page-break-inside:avoid !important;
+  }
+  .card.landscape, .bcard.landscape{
+    width:324px !important;height:204px !important;
+    margin:0 !important;
+    box-shadow:none !important;border:none !important;
+    border-radius:0 !important;overflow:hidden !important;
+    page-break-inside:avoid !important;
+  }
+
+  /* ═══ MODE 1: Pair (Front + Back side-by-side, 1 page per person) ═══ */
+  body.pmode-pair .print-row{
+    display:flex !important;flex-direction:row !important;
+    align-items:flex-start !important;justify-content:flex-start !important;
+    gap:5mm !important;
+    page-break-after:always !important;page-break-inside:avoid !important;
+    margin:0 !important;padding:5mm !important;width:auto !important;
+  }
+  body.pmode-pair .print-row:last-child{page-break-after:auto !important;}
+
+  /* ═══ MODE 2: Duplex (Front-only pages first, then Back-only pages) ═══ */
+  body.pmode-duplex .print-row{
+    display:contents !important;  /* unwrap */
+  }
+  body.pmode-duplex .card-pair.front-pair{
+    page-break-after:always !important;
+    padding:0 !important;margin:0 !important;
+  }
+  body.pmode-duplex .card-pair.back-pair{
+    page-break-after:always !important;
+    padding:0 !important;margin:0 !important;
+  }
+  body.pmode-duplex .card-pair:last-child{page-break-after:auto !important;}
+
+  /* ═══ MODE 3: Grid A4 (8 cards per A4) ═══ */
+  body.pmode-grid .preview{
+    display:grid !important;
+    grid-template-columns:repeat(2, auto) !important;
+    gap:5mm !important;
+    padding:5mm !important;
+  }
+  body.pmode-grid .print-row{display:contents !important;}
+  body.pmode-grid .card-pair{
+    margin:0 !important;
+    page-break-inside:avoid !important;
+  }
+}
+
+/* Default page size — A4 since we now fit Front+Back on one page */
+@page{
+  size:A4;
+  margin:0;
 }

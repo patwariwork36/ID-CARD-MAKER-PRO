@@ -41,6 +41,7 @@ const DEFAULT_STATE = {
   wmSize: 160,
   wmBackSize: 170,
   wmOpacity: 8,
+  printMode: 'pair',
   colors: Object.assign({}, DEFAULT_COLORS),
   fonts: Object.assign({}, DEFAULT_FONTS),
   logo: '', sign: '',
@@ -78,7 +79,66 @@ function setOrient(o){
   state.orient = o;
   document.getElementById('b-portrait').classList.toggle('active', o==='portrait');
   document.getElementById('b-landscape').classList.toggle('active', o==='landscape');
+  applyPageSize();
   render();
+}
+
+// Dynamically set @page size based on print mode + orientation
+function applyPageSize(){
+  let styleEl = document.getElementById('dynamic-page-style');
+  if (!styleEl){
+    styleEl = document.createElement('style');
+    styleEl.id = 'dynamic-page-style';
+    document.head.appendChild(styleEl);
+  }
+  const mode = state.printMode || 'pair';
+  const isLandscape = state.orient === 'landscape';
+
+  let pageRule = '';
+  if (mode === 'duplex'){
+    // CR80 single card per page
+    pageRule = isLandscape ? '85.6mm 54mm' : '54mm 85.6mm';
+  } else {
+    // pair mode (front+back side by side) or grid mode → A4
+    pageRule = isLandscape ? 'A4 landscape' : 'A4 portrait';
+  }
+  styleEl.textContent = '@page{size:' + pageRule + ';margin:0;}';
+}
+
+// Show one-time print tips before triggering print dialog
+function printCards(){
+  const mode = state.printMode || 'pair';
+  let modeMsg = '';
+  let paperMsg = '';
+  if (mode === 'pair'){
+    modeMsg = '📄 Mode: Front + Back side-by-side (1 page per person)\n';
+    paperMsg = '✅ Paper size: A4\n';
+  } else if (mode === 'duplex'){
+    modeMsg = '🔄 Mode: Duplex (all Fronts first, then all Backs)\n';
+    paperMsg = '✅ Paper size: Custom 54×85.6mm (or A4 if printer doesn\'t support)\n' +
+               '✅ Two-sided printing: ON (Long edge / Short edge per your preference)\n';
+  } else {
+    modeMsg = '⬜⬜ Mode: A4 grid (multiple cards per page)\n';
+    paperMsg = '✅ Paper size: A4\n';
+  }
+  const seen = localStorage.getItem('printTipsShownV3_' + mode);
+  if (!seen){
+    const proceed = confirm(
+      '🖨️ Print Settings\n\n' +
+      modeMsg +
+      '\nIn Chrome\'s print dialog set:\n\n' +
+      '✅ Destination: Printer (or Save as PDF)\n' +
+      paperMsg +
+      '✅ Margins: None / Default → minimum\n' +
+      '✅ Scale: 100% — NOT "Fit to page"\n' +
+      '✅ More settings → Background graphics: ON ⭐\n\n' +
+      'Click OK to open print dialog.'
+    );
+    if (!proceed) return;
+    localStorage.setItem('printTipsShownV3_' + mode, '1');
+  }
+  applyPageSize();
+  setTimeout(() => window.print(), 100);
 }
 
 // Removes near-white background from a signature image and returns a clean transparent PNG
@@ -463,43 +523,69 @@ function renderPortrait(p){
   const slW = Math.min(sw + 20, 180);
   const posClass = state.signPosition === 'left' ? 'left' : state.signPosition === 'right' ? 'right' : 'center';
 
+  // Inline color values - resolved from state.colors directly so Chrome prints them reliably
+  const c = state.colors || DEFAULT_COLORS;
+  const cPrimary = c['--c-primary'];
+  const cPrimaryDark = c['--c-primary-dark'];
+  const cAccent = c['--c-accent'];
+  const cStrip = c['--c-strip'];
+  const cStripText = c['--c-strip-text'];
+  const cHeaderText = c['--c-header-text'];
+  const cPhotoBorder = c['--c-photo-border'];
+  const cStripe1 = c['--c-stripe-1'];
+  const cStripe2 = c['--c-stripe-2'];
+  const cStripe3 = c['--c-stripe-3'];
+
+  const fhBg = 'background:linear-gradient(135deg,' + cPrimary + ' 0%,' + cPrimaryDark + ' 100%);background-color:' + cPrimary + ';';
+  const stripBg = 'background:' + cStrip + ';background-color:' + cStrip + ';color:' + cStripText + ';';
+  const stripeBg = 'background:linear-gradient(90deg,' + cStripe1 + ' 33%,' + cStripe2 + ' 33% 66%,' + cStripe3 + ' 66%);background-color:' + cStripe1 + ';';
+  const sbBg = 'background:linear-gradient(180deg,#eef2fa,#e4eaf6);background-color:#eef2fa;border-top-color:' + cPrimary + ';';
+  const oh1Style = 'font-size:' + f.f_oh1 + 'px;color:' + cHeaderText + ';';
+  const oh2Style = 'font-size:' + f.f_oh2 + 'px;';
+  const poStyle = 'font-size:' + f.f_po + 'px;color:' + cPrimary + ';';
+  const slStyle = 'width:' + slW + 'px;background:' + cPrimary + ';';
+  const spStyle = 'font-size:' + f.f_sp + 'px;color:' + cPrimary + ';';
+  const pbStyle = 'height:' + photoInnerH + 'px;width:' + photoW + 'px;border-color:' + cPhotoBorder + ';';
+  const bloodStyle = 'font-size:' + f.f_bblood + 'px;background:' + cAccent + ';background-color:' + cAccent + ';color:#fff;';
+  const btopStyle = 'background:' + cPrimary + ';background-color:' + cPrimary + ';';
+
   const front =
     '<div class="card-pair"><div class="card-label">Front — ' + escapeHtml(p.name||'') + '</div>' +
     '<div class="card portrait">' +
     (state.logo ? '<img class="wm" src="' + state.logo + '" style="' + wmStyle + '"/>' : '') +
-    '<div class="fh">' +
+    '<div class="fh" style="' + fhBg + '">' +
     (state.logo ? '<img class="logo" src="' + state.logo + '"/>' : '') +
-    '<div class="oh1" style="font-size:' + f.f_oh1 + 'px;">' + escapeHtml(state.oh1) + '</div>' +
-    '<div class="oh2" style="font-size:' + f.f_oh2 + 'px;">' + escapeHtml(state.oh2) + '</div>' +
+    '<div class="oh1" style="' + oh1Style + '">' + escapeHtml(state.oh1) + '</div>' +
+    '<div class="oh2" style="' + oh2Style + '">' + escapeHtml(state.oh2) + '</div>' +
     '</div>' +
-    '<div class="strip">पहचान पत्र · Identity Card</div>' +
-    '<div class="pw" style="height:' + pwH + 'px;"><div class="pb" style="height:' + photoInnerH + 'px;width:' + photoW + 'px;">' +
+    '<div class="strip" style="' + stripBg + '">पहचान पत्र · Identity Card</div>' +
+    '<div class="pw" style="height:' + pwH + 'px;"><div class="pb" style="' + pbStyle + '">' +
     (p.photo ? '<img src="' + p.photo + '"/>' : '<span style="font-size:8px;color:#aaa">Photo</span>') +
     '</div></div>' +
     '<div class="nb" style="height:' + nbH + 'px;">' +
     '<div class="nm" style="font-size:' + f.f_nm + 'px;">' + escapeHtml(p.name||'') + '</div>' +
-    '<div class="po" style="font-size:' + f.f_po + 'px;">' + escapeHtml(p.post||'') + '</div>' +
+    '<div class="po" style="' + poStyle + '">' + escapeHtml(p.post||'') + '</div>' +
     '</div>' +
     '<div class="dr"><span class="dt" style="font-size:' + f.f_dt + 'px;">' + escapeHtml(state.dept) + '</span></div>' +
-    '<div class="sb"><div class="sb-inner ' + posClass + '">' +
+    '<div class="sb" style="' + sbBg + '"><div class="sb-inner ' + posClass + '">' +
     '<div class="al" style="font-size:' + f.f_al + 'px;">' + escapeHtml(state.authLabel) + '</div>' +
     (state.sign ? '<img class="si" src="' + state.sign + '" style="width:' + sw + 'px;height:' + sh + 'px;"/>' : '<div style="height:' + sh + 'px"></div>') +
-    '<div class="sl" style="width:' + slW + 'px;"></div>' +
-    '<div class="sp" style="font-size:' + f.f_sp + 'px;">' + escapeHtml(state.signPost) + '</div>' +
-    '</div></div><div class="cs"></div></div></div>';
+    '<div class="sl" style="' + slStyle + '"></div>' +
+    '<div class="sp" style="' + spStyle + '">' + escapeHtml(state.signPost) + '</div>' +
+    '</div></div><div class="cs" style="' + stripeBg + '"></div></div></div>';
 
   const back =
     '<div class="card-pair"><div class="card-label">Back — ' + escapeHtml(p.name||'') + '</div>' +
     '<div class="bcard portrait">' +
     (state.logo ? '<img class="bwm" src="' + state.logo + '" style="' + wmBackStyle + '"/>' : '') +
-    '<div class="btop"></div><div class="bb">' +
+    '<div class="btop" style="' + btopStyle + '"></div><div class="bb">' +
     '<div class="br"><span class="bl" style="font-size:' + f.f_bl + 'px;">Employee ID</span><span class="bv" style="font-size:' + f.f_bv + 'px;">' + escapeHtml(p.empId||'') + '</span></div>' +
     '<div class="br"><span class="bl" style="font-size:' + f.f_bl + 'px;">Father\'s Name</span><span class="bv bmd" style="font-size:' + f.f_bmd + 'px;">' + escapeHtml(p.father||'') + '</span></div>' +
     '<div class="br"><span class="bl" style="font-size:' + f.f_bl + 'px;">Date of Birth</span><span class="bv" style="font-size:' + f.f_bv + 'px;">' + escapeHtml(p.dob||'') + '</span></div>' +
-    '<div class="br"><span class="bl" style="font-size:' + f.f_bl + 'px;">Blood Group</span><span class="bv bblood" style="font-size:' + f.f_bblood + 'px;">' + escapeHtml(p.blood||'') + '</span></div>' +
+    '<div class="br"><span class="bl" style="font-size:' + f.f_bl + 'px;">Blood Group</span><span class="bv bblood" style="' + bloodStyle + '">' + escapeHtml(p.blood||'') + '</span></div>' +
     '<div class="br"><span class="bl" style="font-size:' + f.f_bl + 'px;">Contact</span><span class="bv" style="font-size:' + f.f_bv + 'px;">' + escapeHtml(p.contact||'') + '</span></div>' +
     '<div class="br"><span class="bl" style="font-size:' + f.f_bl + 'px;">Office Address</span><span class="bv bsm" style="font-size:' + f.f_bsm + 'px;">' + escapeHtml(p.address||'').replace(/\n/g,'<br>') + '</span></div>' +
-    '</div><div class="bbot"></div></div></div>';
+    '</div><div class="bbot" style="' + stripeBg + '"></div></div></div>';
 
   return front + back;
 }
@@ -515,26 +601,49 @@ function renderLandscape(p){
   const sh = Math.round(sw * 0.31);
   const slW = Math.min(sw, 80);
 
+  const c = state.colors || DEFAULT_COLORS;
+  const cPrimary = c['--c-primary'];
+  const cPrimaryDark = c['--c-primary-dark'];
+  const cAccent = c['--c-accent'];
+  const cStrip = c['--c-strip'];
+  const cStripText = c['--c-strip-text'];
+  const cHeaderText = c['--c-header-text'];
+  const cPhotoBorder = c['--c-photo-border'];
+  const cStripe1 = c['--c-stripe-1'];
+  const cStripe2 = c['--c-stripe-2'];
+  const cStripe3 = c['--c-stripe-3'];
+
+  const fhBg = 'background:linear-gradient(135deg,' + cPrimary + ' 0%,' + cPrimaryDark + ' 100%);background-color:' + cPrimary + ';';
+  const stripBg = 'background:' + cStrip + ';background-color:' + cStrip + ';color:' + cStripText + ';';
+  const stripeBg = 'background:linear-gradient(90deg,' + cStripe1 + ' 33%,' + cStripe2 + ' 33% 66%,' + cStripe3 + ' 66%);background-color:' + cStripe1 + ';';
+  const oh1Style = 'font-size:' + (f.f_oh1-3) + 'px;color:' + cHeaderText + ';';
+  const poStyle = 'font-size:' + (f.f_po-1) + 'px;color:' + cPrimary + ';';
+  const slStyle = 'width:' + slW + 'px;background:' + cPrimary + ';';
+  const spStyle = 'font-size:' + (f.f_sp-2) + 'px;color:' + cPrimary + ';';
+  const pbStyle = 'border-color:' + cPhotoBorder + ';';
+  const bloodStyle = 'font-size:' + (f.f_bblood-5) + 'px;background:' + cAccent + ';background-color:' + cAccent + ';color:#fff;';
+  const btopStyle = 'background:' + cPrimary + ';background-color:' + cPrimary + ';';
+
   const signColLeft =
     '<div class="sign-col left-pos">' +
     '<div class="al" style="font-size:' + (f.f_al-1) + 'px;">' + escapeHtml(state.authLabel) + '</div>' +
     (state.sign ? '<img class="si" src="' + state.sign + '" style="width:' + sw + 'px;height:' + sh + 'px;"/>' : '<div style="height:' + sh + 'px"></div>') +
-    '<div class="sl" style="width:' + slW + 'px;"></div>' +
-    '<div class="sp" style="font-size:' + (f.f_sp-2) + 'px;">' + escapeHtml(state.signPost) + '</div>' +
+    '<div class="sl" style="' + slStyle + '"></div>' +
+    '<div class="sp" style="' + spStyle + '">' + escapeHtml(state.signPost) + '</div>' +
     '</div>';
   const signColRight =
     '<div class="sign-col">' +
     '<div class="al" style="font-size:' + (f.f_al-1) + 'px;">' + escapeHtml(state.authLabel) + '</div>' +
     (state.sign ? '<img class="si" src="' + state.sign + '" style="width:' + sw + 'px;height:' + sh + 'px;"/>' : '<div style="height:' + sh + 'px"></div>') +
-    '<div class="sl" style="width:' + slW + 'px;"></div>' +
-    '<div class="sp" style="font-size:' + (f.f_sp-2) + 'px;">' + escapeHtml(state.signPost) + '</div>' +
+    '<div class="sl" style="' + slStyle + '"></div>' +
+    '<div class="sp" style="' + spStyle + '">' + escapeHtml(state.signPost) + '</div>' +
     '</div>';
-  const photoCol = '<div class="photo-col"><div class="pb">' +
+  const photoCol = '<div class="photo-col"><div class="pb" style="' + pbStyle + '">' +
     (p.photo ? '<img src="' + p.photo + '"/>' : '<span style="font-size:7px;color:#aaa">Photo</span>') +
     '</div></div>';
   const infoCol = '<div class="info-col">' +
     '<div class="nm" style="font-size:' + (f.f_nm-1) + 'px;">' + escapeHtml(p.name||'') + '</div>' +
-    '<div class="po" style="font-size:' + (f.f_po-1) + 'px;">' + escapeHtml(p.post||'') + '</div>' +
+    '<div class="po" style="' + poStyle + '">' + escapeHtml(p.post||'') + '</div>' +
     '<div class="dt" style="font-size:' + f.f_dt + 'px;">' + escapeHtml(state.dept) + '</div>' +
     '</div>';
 
@@ -544,38 +653,103 @@ function renderLandscape(p){
     '<div class="card-pair"><div class="card-label">Front — ' + escapeHtml(p.name||'') + '</div>' +
     '<div class="card landscape">' +
     (state.logo ? '<img class="wm" src="' + state.logo + '" style="' + wmStyle + '"/>' : '') +
-    '<div class="fh">' +
+    '<div class="fh" style="' + fhBg + '">' +
     (state.logo ? '<img class="logo" src="' + state.logo + '"/>' : '') +
-    '<div class="header-text-l"><div class="oh1" style="font-size:' + (f.f_oh1-3) + 'px;">' + escapeHtml(state.oh1) + '</div><div class="oh2" style="font-size:' + (f.f_oh2-1) + 'px;">' + escapeHtml(state.oh2) + '</div></div>' +
+    '<div class="header-text-l"><div class="oh1" style="' + oh1Style + '">' + escapeHtml(state.oh1) + '</div><div class="oh2" style="font-size:' + (f.f_oh2-1) + 'px;">' + escapeHtml(state.oh2) + '</div></div>' +
     '</div>' +
-    '<div class="strip">पहचान पत्र · Identity Card</div>' +
+    '<div class="strip" style="' + stripBg + '">पहचान पत्र · Identity Card</div>' +
     '<div class="body-l">' + bodyContent + '</div>' +
-    '<div class="cs"></div></div></div>';
+    '<div class="cs" style="' + stripeBg + '"></div></div></div>';
 
   const back =
     '<div class="card-pair"><div class="card-label">Back — ' + escapeHtml(p.name||'') + '</div>' +
     '<div class="bcard landscape">' +
     (state.logo ? '<img class="bwm" src="' + state.logo + '" style="' + wmBackStyle + '"/>' : '') +
-    '<div class="btop"></div><div class="bb">' +
+    '<div class="btop" style="' + btopStyle + '"></div><div class="bb">' +
     '<div class="br"><span class="bl" style="font-size:' + (f.f_bl-1) + 'px;">Employee ID</span><span class="bv" style="font-size:' + (f.f_bv-5) + 'px;">' + escapeHtml(p.empId||'') + '</span></div>' +
     '<div class="br"><span class="bl" style="font-size:' + (f.f_bl-1) + 'px;">Date of Birth</span><span class="bv" style="font-size:' + (f.f_bv-5) + 'px;">' + escapeHtml(p.dob||'') + '</span></div>' +
     '<div class="br"><span class="bl" style="font-size:' + (f.f_bl-1) + 'px;">Father\'s Name</span><span class="bv bmd" style="font-size:' + (f.f_bmd-3.5) + 'px;">' + escapeHtml(p.father||'') + '</span></div>' +
-    '<div class="br"><span class="bl" style="font-size:' + (f.f_bl-1) + 'px;">Blood Group</span><span class="bv bblood" style="font-size:' + (f.f_bblood-5) + 'px;">' + escapeHtml(p.blood||'') + '</span></div>' +
+    '<div class="br"><span class="bl" style="font-size:' + (f.f_bl-1) + 'px;">Blood Group</span><span class="bv bblood" style="' + bloodStyle + '">' + escapeHtml(p.blood||'') + '</span></div>' +
     '<div class="br"><span class="bl" style="font-size:' + (f.f_bl-1) + 'px;">Contact</span><span class="bv" style="font-size:' + (f.f_bv-5) + 'px;">' + escapeHtml(p.contact||'') + '</span></div>' +
     '<div class="br"><span class="bl" style="font-size:' + (f.f_bl-1) + 'px;">Office Address</span><span class="bv bsm" style="font-size:' + (f.f_bsm-3) + 'px;">' + escapeHtml(p.address||'').replace(/\n/g,'<br>') + '</span></div>' +
-    '</div><div class="bbot"></div></div></div>';
+    '</div><div class="bbot" style="' + stripeBg + '"></div></div></div>';
 
   return front + back;
 }
 
+function setPrintMode(mode){
+  state.printMode = mode;
+  document.querySelectorAll('.pmode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+  document.body.classList.remove('pmode-pair', 'pmode-duplex', 'pmode-grid');
+  document.body.classList.add('pmode-' + mode);
+  applyPageSize();
+  render();
+  persist();
+}
+
+// ── Mobile panel toggle ──
+function togglePanel(){
+  document.body.classList.toggle('panel-open');
+  const icon = document.getElementById('mobileToggleIcon');
+  if (icon){
+    icon.textContent = document.body.classList.contains('panel-open') ? '✕' : '☰';
+  }
+}
+
+// Close panel when user taps backdrop (outside panel)
+document.addEventListener('click', (e) => {
+  if (!document.body.classList.contains('panel-open')) return;
+  // only on mobile (panel is fixed)
+  if (window.innerWidth > 900) return;
+  const panel = document.getElementById('panel');
+  const toggleBtn = document.querySelector('.mobile-toggle');
+  if (!panel || !toggleBtn) return;
+  if (panel.contains(e.target) || toggleBtn.contains(e.target)) return;
+  togglePanel();
+});
+
 function render(){
   persist();
   const fn = state.orient === 'portrait' ? renderPortrait : renderLandscape;
-  document.getElementById('preview').innerHTML = state.people.map(fn).join('');
+  const mode = state.printMode || 'pair';
+  let html = '';
+
+  if (mode === 'duplex'){
+    // All FRONTs first, then all BACKs (so duplex printer flips correctly)
+    const fronts = state.people.map(p => {
+      const both = fn(p);
+      // extract just the FRONT card-pair
+      const m = both.match(/<div class="card-pair">[\s\S]*?<\/div><\/div>/);
+      return m ? m[0].replace('<div class="card-pair">', '<div class="card-pair front-pair">') : '';
+    });
+    const backs = state.people.map(p => {
+      const both = fn(p);
+      // extract just the BACK card-pair (second occurrence)
+      const matches = both.match(/<div class="card-pair">[\s\S]*?<\/div><\/div>/g);
+      return matches && matches[1] ? matches[1].replace('<div class="card-pair">', '<div class="card-pair back-pair">') : '';
+    });
+    html = fronts.join('') + backs.join('');
+  } else {
+    // pair or grid mode — wrap each person's front+back in print-row
+    html = state.people.map(p =>
+      '<div class="print-row">' + fn(p) + '</div>'
+    ).join('');
+  }
+
+  document.getElementById('preview').innerHTML = html;
 }
 
 syncInputsToCurrent();
 renderTabs();
+// Apply current print mode body class + button highlight
+const initMode = state.printMode || 'pair';
+document.body.classList.add('pmode-' + initMode);
+document.querySelectorAll('.pmode-btn').forEach(btn => {
+  btn.classList.toggle('active', btn.dataset.mode === initMode);
+});
+applyPageSize();
 render();
 
 // ════════════════════════════════════════════════════
