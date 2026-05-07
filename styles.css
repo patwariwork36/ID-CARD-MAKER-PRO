@@ -249,9 +249,10 @@ input[type=range]{flex:1;}
 .bcard.landscape .bblood{display:inline-block;background:var(--c-accent);color:#fff;font-weight:900;padding:1px 12px;border-radius:4px;margin-top:1px;letter-spacing:0.5px;}
 
 /* ════════════════════════════════════════
-   MOBILE RESPONSIVE — Below 900px
+   MOBILE RESPONSIVE — Below 900px OR touch-only device
    ════════════════════════════════════════ */
-@media (max-width: 900px){
+@media (max-width: 900px),
+       (hover: none) and (pointer: coarse) {
   /* Single column layout */
   .app{
     display:block;
