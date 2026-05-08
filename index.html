@@ -99,11 +99,39 @@
         <input type="file" accept="image/*" id="signFile" onchange="loadImg(event,'sign')"/>
         <button class="btn-clear" onclick="clearImage('sign')" title="Remove signature">✕</button>
       </div>
+
+      <div class="hint" style="margin-top:6px">
+        <b>💡 Tip:</b> Photo ke baad signature scan ho to <b>Auto Clean</b> dabao. Phir sliders se fine-tune karo.
+      </div>
+
+      <label>Quick Presets (click after upload)</label>
+      <div class="sign-preset-row">
+        <button class="btn-secondary signpreset-btn" onclick="applySignPreset('auto')">✨ Auto Clean</button>
+        <button class="btn-secondary signpreset-btn" onclick="applySignPreset('light')">📄 Light Paper</button>
+        <button class="btn-secondary signpreset-btn" onclick="applySignPreset('grey')">📝 Grey Paper</button>
+        <button class="btn-secondary signpreset-btn" onclick="applySignPreset('photo')">📸 Photo (mobile)</button>
+        <button class="btn-secondary signpreset-btn" onclick="applySignPreset('faded')">💧 Faded Sign</button>
+        <button class="btn-secondary signpreset-btn" onclick="applySignPreset('original')">↺ Original</button>
+      </div>
+
       <div class="slider-row">
         <label>BG Clean</label>
         <input type="range" id="signThreshold" min="120" max="240" value="200" oninput="onThresholdChange(this.value)"/>
         <span class="slider-val" id="signThresholdVal">200</span>
       </div>
+
+      <label>Ink Color</label>
+      <div class="row" style="margin-bottom:7px">
+        <select id="signInkMode" onchange="onInkModeChange(this.value)" style="margin:0">
+          <option value="auto">Auto (preserve original color)</option>
+          <option value="black">Pure Black</option>
+          <option value="navy">Navy Blue</option>
+          <option value="blue">Blue Pen</option>
+          <option value="custom">Custom...</option>
+        </select>
+        <input type="color" id="signInkCustom" value="#0d2248" onchange="onInkColorChange(this.value)" style="width:50px;height:34px;padding:0;border:1px solid #ccc;border-radius:4px;display:none"/>
+      </div>
+
       <label>Signatory label</label>
       <input type="text" id="authLabel" oninput="updateGlobal('authLabel',this.value)"/>
       <label>Signature post (Hindi short)</label>

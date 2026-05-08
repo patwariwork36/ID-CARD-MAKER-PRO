@@ -1,3 +1,772 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ID Card Maker Pro — Bulk + Configurable</title>
+  <meta name="description" content="Free, offline-capable ID card maker for Indian government and corporate offices. Bulk import via Excel, custom themes, watermarks, and signature support.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪪</text></svg>">
+
+  <!-- External libraries (CDN, cached after first load) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+
+  <style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700;900&family=Inter:wght@400;500;600;700;800;900&display=swap');
+:root{
+  --c-primary:#1a3a6e;       /* navy header & accents */
+  --c-primary-dark:#0d2248;  /* gradient end */
+  --c-accent:#c0392b;        /* red blood badge */
+  --c-strip:#e8b800;          /* yellow strip */
+  --c-strip-text:#1a3a6e;     /* strip text */
+  --c-header-text:#ffe082;    /* header golden text */
+  --c-photo-border:#1a3a6e;   /* photo box border */
+  --c-stripe-1:#ff9800;       /* CG flag stripe orange */
+  --c-stripe-2:#ffffff;       /* CG flag stripe middle */
+  --c-stripe-3:#00897b;       /* CG flag stripe green */
+  --c-sb-bg-1:#eef2fa;        /* sign block top */
+  --c-sb-bg-2:#e4eaf6;        /* sign block bottom */
+  --c-pb-bg:#e8edf5;          /* photo box empty bg */
+  --c-dr-bg:#f0f4fa;          /* dept row bg */
+  --c-card-bg:#ffffff;        /* card paper */
+  --c-text-main:#111111;      /* main text */
+  --c-text-sub:#555555;       /* sub text */
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',sans-serif;background:#eef1f6;color:#222;}
+
+.app{display:grid;grid-template-columns:420px 1fr;min-height:100vh;}
+.panel{background:#fff;padding:18px;overflow-y:auto;border-right:1px solid #ddd;height:100vh;}
+.preview{padding:24px;background:#c8d4e0;display:flex;flex-direction:column;align-items:center;gap:24px;height:100vh;overflow-y:auto;}
+
+/* Mobile menu toggle button — hidden on desktop, visible on mobile */
+.mobile-toggle{
+  display:none;
+  position:fixed;
+  top:12px;right:12px;
+  z-index:1000;
+  background:#1a3a6e;color:#fff;
+  padding:10px 16px;
+  border:none;border-radius:6px;
+  font-size:14px;font-weight:700;
+  cursor:pointer;
+  box-shadow:0 4px 12px rgba(0,0,0,0.25);
+}
+.mobile-toggle:hover{background:#0d2248;}
+
+h1{font-size:17px;font-weight:900;color:#1a3a6e;margin-bottom:4px;}
+.subtitle{font-size:11px;color:#888;margin-bottom:14px;}
+.status-bar{
+  display:flex;align-items:center;gap:8px;
+  font-size:10.5px;color:#666;
+  padding:6px 10px;background:#f5f7fa;border-radius:5px;
+  margin-bottom:12px;
+}
+.status-bar .sep{color:#bbb;}
+.status-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:#ccc;display:inline-block;
+}
+.status-dot.online{background:#2e8b57;box-shadow:0 0 0 2px rgba(46,139,87,0.2);}
+.status-dot.offline{background:#c0392b;box-shadow:0 0 0 2px rgba(192,57,43,0.2);}
+h2{font-size:11px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.8px;margin:14px 0 8px;border-top:1px solid #eee;padding-top:12px;display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;}
+h2:first-of-type{border-top:none;padding-top:0;cursor:default;}
+h2 .badge{background:#1a3a6e;color:#fff;font-size:9px;padding:2px 6px;border-radius:3px;font-weight:700;}
+h2 .arrow{margin-left:auto;font-size:10px;color:#888;transition:transform 0.2s;}
+h2.collapsed .arrow{transform:rotate(-90deg);}
+.section-content.collapsed{display:none;}
+
+label{display:block;font-size:10.5px;font-weight:600;color:#555;margin-bottom:3px;}
+input[type=text],input[type=tel],textarea,select{
+  width:100%;padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-size:11.5px;
+  font-family:inherit;margin-bottom:7px;background:#fafbfc;
+}
+input:focus,textarea:focus{outline:none;border-color:#1a3a6e;background:#fff;}
+textarea{resize:vertical;min-height:42px;}
+input[type=file]{font-size:10.5px;margin-bottom:7px;width:100%;}
+
+.file-row{display:flex;gap:5px;align-items:center;margin-bottom:7px;}
+.file-row input[type=file]{margin-bottom:0;flex:1;}
+.btn-clear{
+  flex-shrink:0;
+  padding:4px 8px;
+  background:#fde8e8;
+  color:#c0392b;
+  border:1px solid #f5c6c6;
+  border-radius:3px;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer;
+  line-height:1;
+}
+.btn-clear:hover{background:#fcd5d5;border-color:#e8a0a0;}
+
+.row{display:flex;gap:7px;}
+.row > *{flex:1;}
+
+button{padding:8px 12px;border:none;border-radius:4px;font-weight:700;font-size:11.5px;cursor:pointer;}
+.btn-primary{background:#1a3a6e;color:#fff;}
+.btn-primary:hover{background:#0d2248;}
+.btn-secondary{background:#e0e6ef;color:#1a3a6e;}
+.btn-secondary:hover{background:#d0d8e4;}
+.btn-success{background:#2e8b57;color:#fff;}
+.btn-success:hover{background:#236a42;}
+.btn-row{display:flex;gap:7px;margin-top:8px;flex-wrap:wrap;}
+.btn-row > *{flex:1;}
+
+.sign-preset-row{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:8px;}
+.sign-preset-row .signpreset-btn{font-size:10.5px;padding:7px 4px;font-weight:700;}
+
+.toggle-row{display:flex;background:#e8edf5;border-radius:5px;padding:3px;margin-bottom:8px;}
+.toggle-row button{flex:1;background:transparent;color:#666;font-size:10.5px;font-weight:700;}
+.toggle-row button.active{background:#1a3a6e;color:#fff;}
+
+.pos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:#f0f4fa;padding:4px;border-radius:5px;margin-bottom:8px;}
+.pos-cell{aspect-ratio:1;background:#fff;border:1px solid #ccd;border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:#aaa;}
+.pos-cell:hover{background:#e8edf5;}
+.pos-cell.active{background:#1a3a6e;color:#fff;border-color:#1a3a6e;}
+
+.slider-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.slider-row label{margin:0;flex:0 0 100px;font-size:10px;}
+input[type=range]{flex:1;}
+.slider-val{font-size:10.5px;color:#444;font-weight:800;width:42px;text-align:right;}
+
+.font-block{background:#f7f9fc;padding:8px 9px;border-radius:5px;margin-bottom:8px;border:1px solid #e4e8ef;}
+.font-block-title{font-size:10px;font-weight:700;color:#1a3a6e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;}
+
+.theme-row{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;}
+.theme-btn{
+  padding:8px 6px;border:none;border-radius:4px;
+  font-size:10px;font-weight:800;cursor:pointer;
+  letter-spacing:0.3px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.15);
+}
+.theme-btn:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.2);}
+
+.color-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#f7f9fc;padding:8px;border-radius:5px;border:1px solid #e4e8ef;}
+.color-item{display:flex;align-items:center;gap:6px;font-size:10px;color:#555;font-weight:600;}
+.color-item span{flex:1;}
+.color-item input[type=color]{
+  width:32px;height:24px;
+  padding:0;border:1px solid #ccc;border-radius:3px;
+  cursor:pointer;margin:0;
+  background:transparent;
+}
+
+/* Print mode selector */
+.print-mode-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:8px;}
+.pmode-btn{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:9px 4px;background:#f7f9fc;color:#555;border:2px solid #e4e8ef;
+  border-radius:6px;cursor:pointer;font-size:9px;font-weight:700;
+  text-align:center;line-height:1.3;gap:4px;min-height:88px;
+  transition:all 0.15s;
+}
+.pmode-btn:hover{border-color:#1a3a6e;background:#eef2fa;}
+.pmode-btn.active{
+  background:#1a3a6e;color:#fff;border-color:#1a3a6e;
+  box-shadow:0 2px 6px rgba(26,58,110,0.3);
+}
+.pmode-btn .pm-icon{font-size:14px;line-height:1;}
+.pmode-btn .pm-title{font-size:10px;font-weight:800;}
+.pmode-btn .pm-desc{font-size:8px;font-weight:500;opacity:0.85;}
+
+.person-tabs{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:10px;max-height:120px;overflow-y:auto;border:1px solid #eee;padding:4px;border-radius:4px;}
+.person-tabs button{font-size:10px;padding:4px 8px;background:#e8edf5;color:#555;border-radius:3px;cursor:pointer;}
+.person-tabs button.active{background:#1a3a6e;color:#fff;}
+
+.hint{font-size:10.5px;color:#555;background:#f5f7fa;border-left:3px solid #1a3a6e;padding:7px 10px;border-radius:3px;margin-bottom:10px;line-height:1.5;}
+.hint b{color:#1a3a6e;}
+.hint code{background:#e0e6ef;padding:1px 4px;border-radius:2px;font-size:10px;}
+
+.status{font-size:11px;color:#2e8b57;font-weight:700;margin-top:6px;}
+.status.err{color:#c0392b;}
+
+.card-pair{display:flex;flex-direction:column;align-items:center;gap:6px;}
+.card-label{font-size:10px;color:#555;letter-spacing:1px;text-transform:uppercase;}
+
+.card.portrait,.bcard.portrait{width:204px;height:324px;}
+.card.landscape,.bcard.landscape{width:324px;height:204px;}
+
+.card,.bcard{border-radius:10px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.22);position:relative;background:#fff;print-color-adjust:exact;-webkit-print-color-adjust:exact;display:flex;flex-direction:column;}
+
+/* PORTRAIT FRONT - many sizes are now driven by inline CSS variables */
+.portrait .wm{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:0;pointer-events:none;object-fit:contain;}
+.portrait .fh{background:linear-gradient(135deg,var(--c-primary) 0%,var(--c-primary-dark) 100%);width:204px;height:88px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0 10px;flex-shrink:0;}
+.portrait .logo{width:28px;height:28px;object-fit:contain;}
+.portrait .oh1{font-family:'Noto Sans Devanagari',sans-serif;color:var(--c-header-text);font-weight:900;text-align:center;line-height:1.45;}
+.portrait .oh2{font-family:'Noto Sans Devanagari',sans-serif;font-weight:700;color:rgba(255,255,255,0.92);text-align:center;line-height:1.4;}
+.portrait .strip{background:var(--c-strip);width:204px;height:12px;display:flex;align-items:center;justify-content:center;font-size:5.5px;font-weight:900;color:var(--c-strip-text);letter-spacing:1.5px;text-transform:uppercase;flex-shrink:0;}
+.portrait .pw{width:204px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.portrait .pb{border:3px solid var(--c-photo-border);border-radius:5px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#e8edf5;flex-shrink:0;}
+.portrait .pb img{width:100%;height:100%;object-fit:cover;object-position:top center;}
+.portrait .nb{width:204px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 6px;flex-shrink:0;gap:2px;overflow:hidden;}
+.portrait .nm{font-weight:900;color:#111;text-align:center;line-height:1.2;word-break:break-word;}
+.portrait .po{font-weight:800;color:var(--c-primary);text-align:center;letter-spacing:1px;text-transform:uppercase;flex-shrink:0;}
+.portrait .dr{width:204px;height:18px;display:flex;align-items:center;justify-content:center;background:var(--c-dr-bg);border-top:1px solid #dde4f0;border-bottom:1px solid #dde4f0;flex-shrink:0;}
+.portrait .dt{font-weight:700;color:#222;text-align:center;}
+.portrait .sb{width:204px;height:68px;background:linear-gradient(180deg,var(--c-sb-bg-1),var(--c-sb-bg-2));border-top:2px solid var(--c-primary);display:flex;flex-direction:column;justify-content:center;flex-shrink:0;padding:4px 12px;}
+.portrait .sb-inner{display:flex;flex-direction:column;gap:1px;width:100%;}
+.portrait .sb-inner.left{align-items:flex-start;}
+.portrait .sb-inner.center{align-items:center;}
+.portrait .sb-inner.right{align-items:flex-end;}
+.portrait .al{font-weight:800;color:#555;text-transform:uppercase;letter-spacing:1px;}
+.portrait .si{object-fit:contain;}
+.portrait .sl{height:1.5px;background:var(--c-primary);border-radius:1px;}
+.portrait .sp{font-family:'Noto Sans Devanagari',sans-serif;font-weight:900;color:var(--c-primary);text-align:center;line-height:1.4;}
+.portrait .cs{width:204px;height:4px;background:linear-gradient(90deg,var(--c-stripe-1) 33%,var(--c-stripe-2) 33% 66%,var(--c-stripe-3) 66%);flex-shrink:0;}
+
+/* PORTRAIT BACK */
+.bcard.portrait .btop{background:var(--c-primary);width:204px;height:5px;flex-shrink:0;}
+.bcard.portrait .bbot{background:linear-gradient(90deg,var(--c-stripe-1) 33%,var(--c-stripe-2) 33% 66%,var(--c-stripe-3) 66%);width:204px;height:5px;flex-shrink:0;}
+.bcard.portrait .bwm{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:0;pointer-events:none;object-fit:contain;}
+.bcard.portrait .bb{flex:1;padding:12px 16px;display:flex;flex-direction:column;justify-content:space-between;position:relative;z-index:1;}
+.bcard.portrait .br{display:flex;flex-direction:column;gap:2px;border-bottom:0.8px solid #d4d8e4;padding-bottom:7px;}
+.bcard.portrait .br:last-child{border-bottom:none;padding-bottom:0;}
+.bcard.portrait .bl{font-weight:800;color:var(--c-text-sub);text-transform:uppercase;letter-spacing:0.8px;line-height:1.2;}
+.bcard.portrait .bv{font-weight:900;color:var(--c-text-main);line-height:1.3;}
+.bcard.portrait .bmd{font-weight:800;color:#111;line-height:1.3;}
+.bcard.portrait .bsm{font-weight:700;color:#222;line-height:1.4;}
+.bcard.portrait .bblood{display:inline-block;background:var(--c-accent);color:#fff;font-weight:900;padding:2px 20px;border-radius:5px;margin-top:2px;letter-spacing:1px;}
+
+/* LANDSCAPE FRONT */
+.landscape .wm{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:0;pointer-events:none;object-fit:contain;}
+.landscape .fh{background:linear-gradient(135deg,var(--c-primary) 0%,var(--c-primary-dark) 100%);width:324px;height:54px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 10px;flex-shrink:0;}
+.landscape .logo{width:38px;height:38px;object-fit:contain;}
+.landscape .header-text-l{flex:1;color:#fff;text-align:center;}
+.landscape .oh1{font-family:'Noto Sans Devanagari',sans-serif;color:var(--c-header-text);font-weight:900;line-height:1.4;}
+.landscape .oh2{font-family:'Noto Sans Devanagari',sans-serif;font-weight:700;color:rgba(255,255,255,0.9);line-height:1.4;}
+.landscape .strip{background:var(--c-strip);width:324px;height:11px;display:flex;align-items:center;justify-content:center;font-size:6px;font-weight:900;color:var(--c-strip-text);letter-spacing:1.5px;text-transform:uppercase;flex-shrink:0;}
+.landscape .body-l{display:flex;flex:1;padding:7px 9px 5px;gap:8px;position:relative;z-index:1;overflow:hidden;align-items:center;}
+.landscape .photo-col{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;}
+.landscape .pb{width:62px;height:78px;border:2.5px solid var(--c-photo-border);border-radius:5px;overflow:hidden;background:var(--c-pb-bg);display:flex;align-items:center;justify-content:center;}
+.landscape .pb img{width:100%;height:100%;object-fit:cover;object-position:top center;}
+.landscape .info-col{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;gap:3px;}
+.landscape .nm{font-weight:900;color:#111;line-height:1.25;}
+.landscape .po{font-weight:800;color:var(--c-primary);letter-spacing:0.5px;text-transform:uppercase;}
+.landscape .dt{font-weight:700;color:#222;line-height:1.4;}
+.landscape .sign-col{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:84px;flex-shrink:0;border-left:1px dashed #ccd;padding-left:7px;}
+.landscape .sign-col.left-pos{border-left:none;border-right:1px dashed #ccd;padding-left:0;padding-right:7px;}
+.landscape .al{font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;}
+.landscape .si{object-fit:contain;}
+.landscape .sl{height:1px;background:var(--c-primary);}
+.landscape .sp{font-family:'Noto Sans Devanagari',sans-serif;font-weight:800;color:var(--c-primary);text-align:center;line-height:1.4;}
+.landscape .cs{width:324px;height:3px;background:linear-gradient(90deg,var(--c-stripe-1) 33%,var(--c-stripe-2) 33% 66%,var(--c-stripe-3) 66%);flex-shrink:0;}
+
+/* LANDSCAPE BACK */
+.bcard.landscape .btop{background:var(--c-primary);width:324px;height:5px;flex-shrink:0;}
+.bcard.landscape .bbot{background:linear-gradient(90deg,var(--c-stripe-1) 33%,var(--c-stripe-2) 33% 66%,var(--c-stripe-3) 66%);width:324px;height:5px;flex-shrink:0;}
+.bcard.landscape .bwm{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:0;pointer-events:none;object-fit:contain;}
+.bcard.landscape .bb{flex:1;padding:9px 16px;display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;position:relative;z-index:1;align-content:center;}
+.bcard.landscape .br{display:flex;flex-direction:column;gap:1px;border-bottom:0.6px solid #d4d8e4;padding-bottom:4px;}
+.bcard.landscape .bl{font-weight:800;color:var(--c-text-sub);text-transform:uppercase;letter-spacing:0.6px;line-height:1.2;}
+.bcard.landscape .bv{font-weight:900;color:var(--c-text-main);line-height:1.3;}
+.bcard.landscape .bmd{font-weight:800;color:#111;line-height:1.3;}
+.bcard.landscape .bsm{font-weight:700;color:#222;line-height:1.4;}
+.bcard.landscape .bblood{display:inline-block;background:var(--c-accent);color:#fff;font-weight:900;padding:1px 12px;border-radius:4px;margin-top:1px;letter-spacing:0.5px;}
+
+/* ════════════════════════════════════════
+   MOBILE RESPONSIVE — Below 900px OR touch-only device
+   ════════════════════════════════════════ */
+@media (max-width: 900px),
+       (hover: none) and (pointer: coarse) {
+  /* Single column layout */
+  .app{
+    display:block;
+    grid-template-columns:1fr;
+  }
+
+  /* Show mobile toggle button */
+  .mobile-toggle{
+    display:flex;align-items:center;gap:6px;
+  }
+
+  /* Panel becomes a slide-in overlay drawer */
+  .panel{
+    position:fixed;
+    top:0;left:-100%;
+    width:88%;max-width:420px;
+    height:100vh;height:100dvh;
+    z-index:999;
+    box-shadow:6px 0 24px rgba(0,0,0,0.25);
+    transition:left 0.25s ease-out;
+    padding-top:60px; /* room for close hint */
+    overflow-y:auto;overflow-x:hidden;
+    -webkit-overflow-scrolling:touch;
+  }
+  body.panel-open .panel{left:0;}
+
+  /* Backdrop when panel open */
+  body.panel-open::before{
+    content:'';position:fixed;inset:0;
+    background:rgba(0,0,0,0.45);
+    z-index:998;
+  }
+
+  /* Preview takes full width */
+  .preview{
+    height:auto;min-height:100vh;min-height:100dvh;
+    padding:64px 12px 24px;
+    gap:20px;
+  }
+
+  /* Card label slightly smaller */
+  .card-label{font-size:10px;}
+
+  /* Larger tap targets */
+  button{min-height:38px;padding:10px 14px;font-size:12.5px;}
+  input[type=text],input[type=tel],textarea,select{
+    padding:9px 10px;font-size:14px;  /* 14px+ avoids iOS zoom on focus */
+    min-height:40px;
+  }
+  input[type=file]{font-size:13px;padding:8px 0;min-height:40px;}
+  label{font-size:11.5px;margin-bottom:4px;}
+
+  /* Section toggles bigger and clearer */
+  h2{padding:14px 0 10px;font-size:11.5px;}
+
+  /* Bigger color pickers for fingers */
+  .color-item input[type=color]{width:42px;height:32px;}
+
+  /* Sliders thicker on mobile */
+  input[type=range]{height:24px;}
+
+  /* Theme grid 2-column on small screens */
+  .theme-row{grid-template-columns:1fr 1fr;gap:6px;}
+  .theme-btn{padding:10px 6px;font-size:11px;min-height:44px;}
+
+  /* Print mode buttons stack 1-column */
+  .print-mode-grid{grid-template-columns:1fr;gap:6px;}
+  .pmode-btn{flex-direction:row;justify-content:flex-start;text-align:left;
+    padding:10px 12px;min-height:60px;gap:12px;
+  }
+  .pmode-btn .pm-icon{font-size:18px;}
+  .pmode-btn .pm-title{font-size:12px;}
+  .pmode-btn .pm-desc{font-size:10px;}
+
+  /* Color grid 1-column */
+  .color-grid{grid-template-columns:1fr;}
+
+  /* Person tabs: scrollable horizontally is fine */
+  .person-tabs{max-height:90px;}
+
+  /* Pos grid bigger */
+  .pos-cell{font-size:18px;}
+}
+
+/* Even smaller phones */
+@media (max-width: 380px){
+  .panel{width:94%;padding:12px;padding-top:60px;}
+  .preview{padding:60px 8px 20px;}
+  .card.portrait,.bcard.portrait{transform:scale(0.95);transform-origin:top center;}
+}
+
+
+@media print{
+  /* Force colors */
+  *{
+    -webkit-print-color-adjust:exact !important;
+    print-color-adjust:exact !important;
+    color-adjust:exact !important;
+  }
+
+  /* Hide UI */
+  .panel,.card-label{display:none !important;}
+  .app{display:block !important;}
+  body{background:white !important;margin:0 !important;padding:0 !important;}
+  .preview{padding:0 !important;background:white !important;height:auto !important;overflow:visible !important;gap:0 !important;display:block !important;}
+  .card-pair{margin:0 !important;padding:0 !important;page-break-inside:avoid !important;display:block !important;}
+
+  .card.portrait, .bcard.portrait{
+    width:204px !important;height:324px !important;
+    margin:0 !important;
+    box-shadow:none !important;border:none !important;
+    border-radius:0 !important;overflow:hidden !important;
+    page-break-inside:avoid !important;
+  }
+  .card.landscape, .bcard.landscape{
+    width:324px !important;height:204px !important;
+    margin:0 !important;
+    box-shadow:none !important;border:none !important;
+    border-radius:0 !important;overflow:hidden !important;
+    page-break-inside:avoid !important;
+  }
+
+  /* ═══ MODE 1: Pair (Front + Back side-by-side, 1 page per person) ═══ */
+  body.pmode-pair .print-row{
+    display:flex !important;flex-direction:row !important;
+    align-items:flex-start !important;justify-content:flex-start !important;
+    gap:5mm !important;
+    page-break-after:always !important;page-break-inside:avoid !important;
+    margin:0 !important;padding:5mm !important;width:auto !important;
+  }
+  body.pmode-pair .print-row:last-child{page-break-after:auto !important;}
+
+  /* ═══ MODE 2: Duplex (Front-only pages first, then Back-only pages) ═══ */
+  body.pmode-duplex .print-row{
+    display:contents !important;  /* unwrap */
+  }
+  body.pmode-duplex .card-pair.front-pair{
+    page-break-after:always !important;
+    padding:0 !important;margin:0 !important;
+  }
+  body.pmode-duplex .card-pair.back-pair{
+    page-break-after:always !important;
+    padding:0 !important;margin:0 !important;
+  }
+  body.pmode-duplex .card-pair:last-child{page-break-after:auto !important;}
+
+  /* ═══ MODE 3: Grid A4 (8 cards per A4) ═══ */
+  body.pmode-grid .preview{
+    display:grid !important;
+    grid-template-columns:repeat(2, auto) !important;
+    gap:5mm !important;
+    padding:5mm !important;
+  }
+  body.pmode-grid .print-row{display:contents !important;}
+  body.pmode-grid .card-pair{
+    margin:0 !important;
+    page-break-inside:avoid !important;
+  }
+}
+
+/* Default page size — A4 since we now fit Front+Back on one page */
+@page{
+  size:A4;
+  margin:0;
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Mobile menu toggle (only visible on mobile) -->
+  <button class="mobile-toggle" onclick="togglePanel()" aria-label="Toggle settings">
+    <span id="mobileToggleIcon">☰</span> Settings
+  </button>
+
+  <div class="panel" id="panel">
+    <h1>🪪 ID Card Maker Pro</h1>
+    <div class="subtitle">Bulk · Font controls · Auto-saved</div>
+    <div class="status-bar" id="statusBar">
+      <span class="status-dot" id="netDot"></span>
+      <span id="netStatus">Checking…</span>
+      <span class="sep">·</span>
+      <span id="storageStatus">💾 0 KB saved</span>
+    </div>
+
+    <h2 onclick="toggleSection(this)">🗂️ Profiles <span class="badge">NEW</span> <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <div class="hint">Save full setups (office config + logo + sign + people) and switch between them.</div>
+      <div class="row">
+        <input type="text" id="profileName" placeholder="Profile name e.g. Palari Office"/>
+        <button class="btn-success" onclick="saveProfile()">💾 Save</button>
+      </div>
+      <select id="profileSelect" onchange="loadProfile(this.value)" style="margin-top:6px">
+        <option value="">— Load a saved profile —</option>
+      </select>
+      <div class="btn-row">
+        <button class="btn-secondary" onclick="deleteProfile()">🗑️ Delete</button>
+        <button class="btn-secondary" onclick="exportAllProfiles()">📤 Export All</button>
+        <button class="btn-secondary" onclick="document.getElementById('importProfilesFile').click()">📥 Import</button>
+        <input type="file" id="importProfilesFile" accept=".json" onchange="importProfiles(event)" style="display:none"/>
+      </div>
+    </div>
+
+    <h2 onclick="toggleSection(this)">📦 Bulk Import <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <div class="hint">
+        <b>Excel columns:</b> <code>NAME, FATHER'S NAME, DOB, EMPLOYEE CODE, BLOOD GROUP, CONTACT NUMBER, OFFICE ADRESS, POST</code><br>
+        <b>Photos:</b> file name <code>EmployeeCode.jpg</code>
+      </div>
+      <label>Excel file (.xlsx)</label>
+      <div class="file-row">
+        <input type="file" id="bulkExcel" accept=".xlsx,.xls"/>
+        <button class="btn-clear" onclick="clearFileInput('bulkExcel')" title="Clear">✕</button>
+      </div>
+      <label>Photos ZIP file</label>
+      <div class="file-row">
+        <input type="file" id="bulkZip" accept=".zip"/>
+        <button class="btn-clear" onclick="clearFileInput('bulkZip')" title="Clear">✕</button>
+      </div>
+      <button class="btn-success" onclick="doBulkImport()" style="width:100%">📥 Import Bulk Data</button>
+      <div class="status" id="bulkStatus"></div>
+    </div>
+
+    <h2 onclick="toggleSection(this)">📐 Orientation <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <div class="toggle-row">
+        <button id="b-portrait" class="active" onclick="setOrient('portrait')">📄 Portrait</button>
+        <button id="b-landscape" onclick="setOrient('landscape')">📰 Landscape</button>
+      </div>
+    </div>
+
+    <h2 onclick="toggleSection(this)">🏛️ Office Header <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <label>Main heading (Hindi)</label>
+      <input type="text" id="oh1" oninput="updateGlobal('oh1',this.value)"/>
+      <label>Sub heading (Hindi)</label>
+      <input type="text" id="oh2" oninput="updateGlobal('oh2',this.value)"/>
+      <label>Department (English, short)</label>
+      <input type="text" id="dept" oninput="updateGlobal('dept',this.value)"/>
+    </div>
+
+    <h2 onclick="toggleSection(this)">🖼️ Logo & Signature <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <label>State / Office Logo</label>
+      <div class="file-row">
+        <input type="file" accept="image/*" id="logoFile" onchange="loadImg(event,'logo')"/>
+        <button class="btn-clear" onclick="clearImage('logo')" title="Remove logo">✕</button>
+      </div>
+      <label>Signature image</label>
+      <div class="file-row">
+        <input type="file" accept="image/*" id="signFile" onchange="loadImg(event,'sign')"/>
+        <button class="btn-clear" onclick="clearImage('sign')" title="Remove signature">✕</button>
+      </div>
+
+      <div class="hint" style="margin-top:6px">
+        <b>💡 Tip:</b> Photo ke baad signature scan ho to <b>Auto Clean</b> dabao. Phir sliders se fine-tune karo.
+      </div>
+
+      <label>Quick Presets (click after upload)</label>
+      <div class="sign-preset-row">
+        <button class="btn-secondary signpreset-btn" onclick="applySignPreset('auto')">✨ Auto Clean</button>
+        <button class="btn-secondary signpreset-btn" onclick="applySignPreset('light')">📄 Light Paper</button>
+        <button class="btn-secondary signpreset-btn" onclick="applySignPreset('grey')">📝 Grey Paper</button>
+        <button class="btn-secondary signpreset-btn" onclick="applySignPreset('photo')">📸 Photo (mobile)</button>
+        <button class="btn-secondary signpreset-btn" onclick="applySignPreset('faded')">💧 Faded Sign</button>
+        <button class="btn-secondary signpreset-btn" onclick="applySignPreset('original')">↺ Original</button>
+      </div>
+
+      <div class="slider-row">
+        <label>BG Clean</label>
+        <input type="range" id="signThreshold" min="120" max="240" value="200" oninput="onThresholdChange(this.value)"/>
+        <span class="slider-val" id="signThresholdVal">200</span>
+      </div>
+
+      <label>Ink Color</label>
+      <div class="row" style="margin-bottom:7px">
+        <select id="signInkMode" onchange="onInkModeChange(this.value)" style="margin:0">
+          <option value="auto">Auto (preserve original color)</option>
+          <option value="black">Pure Black</option>
+          <option value="navy">Navy Blue</option>
+          <option value="blue">Blue Pen</option>
+          <option value="custom">Custom...</option>
+        </select>
+        <input type="color" id="signInkCustom" value="#0d2248" onchange="onInkColorChange(this.value)" style="width:50px;height:34px;padding:0;border:1px solid #ccc;border-radius:4px;display:none"/>
+      </div>
+
+      <label>Signatory label</label>
+      <input type="text" id="authLabel" oninput="updateGlobal('authLabel',this.value)"/>
+      <label>Signature post (Hindi short)</label>
+      <input type="text" id="signPost" oninput="updateGlobal('signPost',this.value)"/>
+    </div>
+
+    <h2 onclick="toggleSection(this)">🎨 Colors & Theme <span class="badge">NEW</span> <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <div class="hint">Choose a preset theme or pick custom colors for each part of the card.</div>
+      <label>Preset Themes</label>
+      <div class="theme-row">
+        <button class="theme-btn" onclick="applyTheme('navy')" style="background:linear-gradient(135deg,#1a3a6e,#0d2248);color:#ffe082">Navy (Default)</button>
+        <button class="theme-btn" onclick="applyTheme('maroon')" style="background:linear-gradient(135deg,#7a1f1f,#4a0e0e);color:#ffd54f">Maroon</button>
+        <button class="theme-btn" onclick="applyTheme('forest')" style="background:linear-gradient(135deg,#1b5e20,#0d3b13);color:#fff8c4">Forest Green</button>
+        <button class="theme-btn" onclick="applyTheme('royal')" style="background:linear-gradient(135deg,#4a148c,#2c0a52);color:#ffe082">Royal Purple</button>
+        <button class="theme-btn" onclick="applyTheme('teal')" style="background:linear-gradient(135deg,#00695c,#003d34);color:#ffd180">Teal</button>
+        <button class="theme-btn" onclick="applyTheme('saffron')" style="background:linear-gradient(135deg,#bf5700,#7a3700);color:#fff8c4">Saffron</button>
+        <button class="theme-btn" onclick="applyTheme('charcoal')" style="background:linear-gradient(135deg,#37474f,#1c252a);color:#ffd54f">Charcoal</button>
+        <button class="theme-btn" onclick="applyTheme('crimson')" style="background:linear-gradient(135deg,#b71c1c,#7a0e0e);color:#ffe082">Crimson</button>
+      </div>
+
+      <label style="margin-top:10px">Custom Colors</label>
+      <div class="color-grid">
+        <div class="color-item"><span>Header BG</span><input type="color" id="cVar_c-primary" oninput="updateColor('--c-primary',this.value)"/></div>
+        <div class="color-item"><span>Header BG (dark)</span><input type="color" id="cVar_c-primary-dark" oninput="updateColor('--c-primary-dark',this.value)"/></div>
+        <div class="color-item"><span>Header Text</span><input type="color" id="cVar_c-header-text" oninput="updateColor('--c-header-text',this.value)"/></div>
+        <div class="color-item"><span>Yellow Strip</span><input type="color" id="cVar_c-strip" oninput="updateColor('--c-strip',this.value)"/></div>
+        <div class="color-item"><span>Strip Text</span><input type="color" id="cVar_c-strip-text" oninput="updateColor('--c-strip-text',this.value)"/></div>
+        <div class="color-item"><span>Photo Border</span><input type="color" id="cVar_c-photo-border" oninput="updateColor('--c-photo-border',this.value)"/></div>
+        <div class="color-item"><span>Blood Badge</span><input type="color" id="cVar_c-accent" oninput="updateColor('--c-accent',this.value)"/></div>
+        <div class="color-item"><span>Stripe 1</span><input type="color" id="cVar_c-stripe-1" oninput="updateColor('--c-stripe-1',this.value)"/></div>
+        <div class="color-item"><span>Stripe 2</span><input type="color" id="cVar_c-stripe-2" oninput="updateColor('--c-stripe-2',this.value)"/></div>
+        <div class="color-item"><span>Stripe 3</span><input type="color" id="cVar_c-stripe-3" oninput="updateColor('--c-stripe-3',this.value)"/></div>
+      </div>
+
+      <button class="btn-secondary" onclick="resetColors()" style="width:100%;margin-top:8px">↺ Reset to Default</button>
+    </div>
+
+    <h2 onclick="toggleSection(this)">💧 Watermark <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <div class="hint">Logo ka faded watermark front aur back dono pe automatically aata hai. Size aur darkness adjust karo.</div>
+      <div class="slider-row">
+        <label>Size (Front)</label>
+        <input type="range" id="wmSize" min="80" max="200" value="160" oninput="updateSize('wmSize',this.value,'wmSizeVal','px')"/>
+        <span class="slider-val" id="wmSizeVal">160px</span>
+      </div>
+      <div class="slider-row">
+        <label>Size (Back)</label>
+        <input type="range" id="wmBackSize" min="80" max="200" value="170" oninput="updateSize('wmBackSize',this.value,'wmBackSizeVal','px')"/>
+        <span class="slider-val" id="wmBackSizeVal">170px</span>
+      </div>
+      <div class="slider-row">
+        <label>Opacity</label>
+        <input type="range" id="wmOpacity" min="2" max="25" step="1" value="8" oninput="updateSize('wmOpacity',this.value,'wmOpacityVal','%')"/>
+        <span class="slider-val" id="wmOpacityVal">8%</span>
+      </div>
+    </div>
+
+    <h2 onclick="toggleSection(this)">✍️ Sign Position & Size <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <label>Position</label>
+      <div class="pos-grid">
+        <div class="pos-cell" data-pos="left">◀</div>
+        <div class="pos-cell active" data-pos="center">●</div>
+        <div class="pos-cell" data-pos="right">▶</div>
+      </div>
+      <div class="slider-row">
+        <label>Sign Width</label>
+        <input type="range" id="signSize" min="50" max="140" value="96" oninput="updateSize('signWidth',this.value,'signSizeVal','px')"/>
+        <span class="slider-val" id="signSizeVal">96px</span>
+      </div>
+    </div>
+
+    <h2 onclick="toggleSection(this)">🔠 Font Sizes <span class="badge">NEW</span> <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <div class="hint">All font sizes adjustable. Reset button at bottom.</div>
+
+      <div class="font-block">
+        <div class="font-block-title">Front — Header</div>
+        <div class="slider-row"><label>Main heading</label><input type="range" min="9" max="18" step="0.5" id="f_oh1" oninput="updateSize('f_oh1',this.value,'v_oh1','px')"/><span class="slider-val" id="v_oh1">14px</span></div>
+        <div class="slider-row"><label>Sub heading</label><input type="range" min="7" max="13" step="0.5" id="f_oh2" oninput="updateSize('f_oh2',this.value,'v_oh2','px')"/><span class="slider-val" id="v_oh2">9px</span></div>
+      </div>
+
+      <div class="font-block">
+        <div class="font-block-title">Front — Name & Post</div>
+        <div class="slider-row"><label>Name</label><input type="range" min="9" max="18" step="0.5" id="f_nm" oninput="updateSize('f_nm',this.value,'v_nm','px')"/><span class="slider-val" id="v_nm">14px</span></div>
+        <div class="slider-row"><label>Post (Patwari)</label><input type="range" min="7" max="14" step="0.5" id="f_po" oninput="updateSize('f_po',this.value,'v_po','px')"/><span class="slider-val" id="v_po">11px</span></div>
+        <div class="slider-row"><label>Department</label><input type="range" min="5" max="10" step="0.5" id="f_dt" oninput="updateSize('f_dt',this.value,'v_dt','px')"/><span class="slider-val" id="v_dt">7.5px</span></div>
+      </div>
+
+      <div class="font-block">
+        <div class="font-block-title">Front — Sign Section</div>
+        <div class="slider-row"><label>Auth label</label><input type="range" min="5" max="9" step="0.5" id="f_al" oninput="updateSize('f_al',this.value,'v_al','px')"/><span class="slider-val" id="v_al">6.5px</span></div>
+        <div class="slider-row"><label>Sign post text</label><input type="range" min="7" max="12" step="0.5" id="f_sp" oninput="updateSize('f_sp',this.value,'v_sp','px')"/><span class="slider-val" id="v_sp">10px</span></div>
+      </div>
+
+      <div class="font-block">
+        <div class="font-block-title">Back — Labels & Values</div>
+        <div class="slider-row"><label>Field label</label><input type="range" min="6" max="10" step="0.5" id="f_bl" oninput="updateSize('f_bl',this.value,'v_bl','px')"/><span class="slider-val" id="v_bl">7.5px</span></div>
+        <div class="slider-row"><label>Value (big)</label><input type="range" min="11" max="20" step="0.5" id="f_bv" oninput="updateSize('f_bv',this.value,'v_bv','px')"/><span class="slider-val" id="v_bv">16px</span></div>
+        <div class="slider-row"><label>Value (medium)</label><input type="range" min="9" max="16" step="0.5" id="f_bmd" oninput="updateSize('f_bmd',this.value,'v_bmd','px')"/><span class="slider-val" id="v_bmd">13px</span></div>
+        <div class="slider-row"><label>Value (small)</label><input type="range" min="8" max="13" step="0.5" id="f_bsm" oninput="updateSize('f_bsm',this.value,'v_bsm','px')"/><span class="slider-val" id="v_bsm">11px</span></div>
+        <div class="slider-row"><label>Blood group</label><input type="range" min="12" max="22" step="0.5" id="f_bblood" oninput="updateSize('f_bblood',this.value,'v_bblood','px')"/><span class="slider-val" id="v_bblood">18px</span></div>
+      </div>
+
+      <button class="btn-secondary" onclick="resetFonts()" style="width:100%">↺ Reset All Fonts</button>
+    </div>
+
+    <h2 onclick="toggleSection(this)">👥 People (<span id="peopleCount">1</span>) <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <div class="person-tabs" id="personTabs"></div>
+      <div class="btn-row">
+        <button class="btn-secondary" onclick="addPerson()">+ Add</button>
+        <button class="btn-secondary" onclick="removePerson()">− Remove</button>
+        <button class="btn-secondary" onclick="clearAll()">🗑️ Clear</button>
+      </div>
+    </div>
+
+    <h2 onclick="toggleSection(this)">👤 Person Details <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <label>Photo</label>
+      <div class="file-row">
+        <input type="file" accept="image/*" id="photoFile" onchange="loadImg(event,'photo')"/>
+        <button class="btn-clear" onclick="clearImage('photo')" title="Remove photo">✕</button>
+      </div>
+      <label>Name</label>
+      <input type="text" id="name" oninput="updateField('name',this.value)"/>
+      <label>Post (English)</label>
+      <input type="text" id="post" oninput="updateField('post',this.value)"/>
+      <label>Father's Name</label>
+      <input type="text" id="father" oninput="updateField('father',this.value)"/>
+      <label>Employee ID</label>
+      <input type="text" id="empId" oninput="updateField('empId',this.value)"/>
+      <div class="row">
+        <div><label>DOB</label><input type="text" id="dob" placeholder="DD/MM/YYYY" oninput="updateField('dob',this.value)"/></div>
+        <div><label>Blood</label><input type="text" id="blood" oninput="updateField('blood',this.value)"/></div>
+      </div>
+      <label>Contact</label>
+      <input type="tel" id="contact" oninput="updateField('contact',this.value)"/>
+      <label>Office Address</label>
+      <textarea id="address" oninput="updateField('address',this.value)"></textarea>
+    </div>
+
+    <h2 onclick="toggleSection(this)">❓ Help & Tips <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <div class="hint">
+        <b>🛡️ Data Safety</b><br>
+        • Browser cache clear hone se data ja sakta hai<br>
+        • <b>Daily JSON backup le</b> — "💾 Save" button se<br>
+        • <b>Profiles</b> use karo — multiple offices ke liye<br>
+        • Tool HTML file ko Drive/Email pe save kar lo
+      </div>
+      <div class="hint">
+        <b>📦 Bulk Import workflow:</b><br>
+        1. Excel banao with columns: NAME, FATHER'S NAME, DOB, EMPLOYEE CODE, BLOOD GROUP, CONTACT NUMBER, OFFICE ADRESS<br>
+        2. Photos rename to <code>EmpCode.jpg</code><br>
+        3. Photos folder ZIP banao<br>
+        4. Upload + click Import button
+      </div>
+      <div class="hint">
+        <b>✈️ Offline use:</b><br>
+        • Manual entry, edit, print — sab offline chalega<br>
+        • Bulk Import ke liye internet chahiye (pehli baar)<br>
+        • Saved JSON files anytime load ho sakti hain
+      </div>
+      <div class="hint">
+        <b>🖨️ Print tips:</b><br>
+        • Browser print dialog me "Actual Size" ya "100%" select karo<br>
+        • "Fit to page" OFF rakho<br>
+        • Card stock paper use karo (~250 GSM)
+      </div>
+    </div>
+
+    <h2 onclick="toggleSection(this)">🖨️ Print Layout <span class="badge">NEW</span> <span class="arrow">▼</span></h2>
+    <div class="section-content">
+      <div class="hint">
+        Choose how cards should print:
+      </div>
+      <label>Print Mode</label>
+      <div class="print-mode-grid">
+        <button class="pmode-btn active" data-mode="pair" onclick="setPrintMode('pair')">
+          <span class="pm-icon">📄📄</span>
+          <span class="pm-title">Front + Back<br>Side-by-Side</span>
+          <span class="pm-desc">1 page per person<br>Cut + paste back</span>
+        </button>
+        <button class="pmode-btn" data-mode="duplex" onclick="setPrintMode('duplex')">
+          <span class="pm-icon">🔄</span>
+          <span class="pm-title">Duplex<br>(Front/Back Sep.)</span>
+          <span class="pm-desc">All fronts → all backs<br>For 2-sided printer</span>
+        </button>
+        <button class="pmode-btn" data-mode="grid" onclick="setPrintMode('grid')">
+          <span class="pm-icon">⬜⬜<br>⬜⬜</span>
+          <span class="pm-title">A4 Grid<br>(8 per page)</span>
+          <span class="pm-desc">Cut after print<br>Saves paper</span>
+        </button>
+      </div>
+    </div>
+
+    <h2>💾 Save / Print</h2>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="printCards()">🖨️ Print All</button>
+      <button class="btn-secondary" onclick="exportData()">💾 Save</button>
+      <button class="btn-secondary" onclick="document.getElementById('importFile').click()">📂 Load</button>
+      <input type="file" id="importFile" accept=".json" onchange="importData(event)" style="display:none"/>
+    </div>
+  </div>
+
+  <div class="preview" id="preview"></div>
+</div>
+
+  <script>
 const DEFAULT_COLORS = {
   '--c-primary': '#1a3a6e',
   '--c-primary-dark': '#0d2248',
@@ -1121,3 +1890,6 @@ function importProfiles(ev){
 }
 
 refreshProfileSelect();
+</script>
+</body>
+</html>

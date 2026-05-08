@@ -100,6 +100,9 @@ button{padding:8px 12px;border:none;border-radius:4px;font-weight:700;font-size:
 .btn-row{display:flex;gap:7px;margin-top:8px;flex-wrap:wrap;}
 .btn-row > *{flex:1;}
 
+.sign-preset-row{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:8px;}
+.sign-preset-row .signpreset-btn{font-size:10.5px;padding:7px 4px;font-weight:700;}
+
 .toggle-row{display:flex;background:#e8edf5;border-radius:5px;padding:3px;margin-bottom:8px;}
 .toggle-row button{flex:1;background:transparent;color:#666;font-size:10.5px;font-weight:700;}
 .toggle-row button.active{background:#1a3a6e;color:#fff;}
@@ -194,7 +197,7 @@ input[type=range]{flex:1;}
 .portrait .sb-inner.center{align-items:center;}
 .portrait .sb-inner.right{align-items:flex-end;}
 .portrait .al{font-weight:800;color:#555;text-transform:uppercase;letter-spacing:1px;}
-.portrait .si{object-fit:contain;mix-blend-mode:multiply;}
+.portrait .si{object-fit:contain;}
 .portrait .sl{height:1.5px;background:var(--c-primary);border-radius:1px;}
 .portrait .sp{font-family:'Noto Sans Devanagari',sans-serif;font-weight:900;color:var(--c-primary);text-align:center;line-height:1.4;}
 .portrait .cs{width:204px;height:4px;background:linear-gradient(90deg,var(--c-stripe-1) 33%,var(--c-stripe-2) 33% 66%,var(--c-stripe-3) 66%);flex-shrink:0;}
@@ -231,7 +234,7 @@ input[type=range]{flex:1;}
 .landscape .sign-col{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:84px;flex-shrink:0;border-left:1px dashed #ccd;padding-left:7px;}
 .landscape .sign-col.left-pos{border-left:none;border-right:1px dashed #ccd;padding-left:0;padding-right:7px;}
 .landscape .al{font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px;}
-.landscape .si{object-fit:contain;mix-blend-mode:multiply;}
+.landscape .si{object-fit:contain;}
 .landscape .sl{height:1px;background:var(--c-primary);}
 .landscape .sp{font-family:'Noto Sans Devanagari',sans-serif;font-weight:800;color:var(--c-primary);text-align:center;line-height:1.4;}
 .landscape .cs{width:324px;height:3px;background:linear-gradient(90deg,var(--c-stripe-1) 33%,var(--c-stripe-2) 33% 66%,var(--c-stripe-3) 66%);flex-shrink:0;}
